@@ -329,15 +329,19 @@ export class GameEngine {
       }
     }
     
-    // Check teleporter collision
+    // Check teleporter collision (only when moving over center)
     this.teleporters.forEach((teleporter, index) => {
-      const dx = this.player.x - teleporter.x;
-      const dy = this.player.y - teleporter.y;
-      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      const dx = Math.abs(this.player.x + this.player.width / 2 - teleporter.x);
+      const dy = Math.abs(this.player.y + this.player.height / 2 - teleporter.y);
+      
+      // Only teleport when directly on top
+      if (dx < 8 && dy < 8 && (Math.abs(this.player.vx) > 1 || Math.abs(this.player.vy) > 1)) {
         const linked = this.teleporters[teleporter.linkedTo];
         if (linked) {
-          this.player.x = linked.x;
-          this.player.y = linked.y;
+          this.player.x = linked.x - this.player.width / 2;
+          this.player.y = linked.y - this.player.height / 2;
+          // Add a small cooldown to prevent instant re-teleport
+          this.player.invincible = Math.max(this.player.invincible, 30);
         }
       }
     });
@@ -411,153 +415,239 @@ export class GameEngine {
 
   private drawSprite(x: number, y: number, width: number, height: number, color: string, type: 'cat' | 'mouse' | 'dog', direction: number) {
     this.animFrame++;
-    const walkCycle = Math.floor(this.animFrame / 10) % 2;
+    const walkCycle = Math.floor(this.animFrame / 8) % 2;
     
-    // Shadow
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    this.ctx.fillRect(x + 2, y + height, width - 4, 3);
-    
-    // Body with outline
-    this.ctx.strokeStyle = '#000000';
-    this.ctx.lineWidth = 2;
-    this.ctx.fillStyle = color;
+    // Disable anti-aliasing for crisp pixels
+    this.ctx.imageSmoothingEnabled = false;
     
     if (type === 'cat') {
-      // Cat body
-      this.ctx.fillRect(x + 4, y + 8, width - 8, height - 12);
-      this.ctx.strokeRect(x + 4, y + 8, width - 8, height - 12);
+      // Classic 8-bit cat in Ice Climber style
+      const leftFacing = direction < 0;
       
-      // Cat head
-      this.ctx.fillRect(x + 2, y + 2, width - 4, 10);
-      this.ctx.strokeRect(x + 2, y + 2, width - 4, 10);
+      // Body (main color)
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x + 6, y + 10, 12, 10);
+      
+      // Head
+      this.ctx.fillRect(x + 4, y + 4, 16, 8);
       
       // Ears
-      this.ctx.fillRect(x + 2, y, 4, 4);
-      this.ctx.fillRect(x + width - 6, y, 4, 4);
+      this.ctx.fillRect(x + 4, y + 2, 3, 3);
+      this.ctx.fillRect(x + 13, y + 2, 3, 3);
       
-      // Eyes
+      // Eyes (white)
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.fillRect(x + 6, y + 4, 3, 3);
-      this.ctx.fillRect(x + width - 9, y + 4, 3, 3);
+      if (leftFacing) {
+        this.ctx.fillRect(x + 6, y + 6, 2, 2);
+      } else {
+        this.ctx.fillRect(x + 12, y + 6, 2, 2);
+      }
+      
+      // Pupils (black)
+      this.ctx.fillStyle = '#000000';
+      if (leftFacing) {
+        this.ctx.fillRect(x + 6, y + 6, 1, 2);
+      } else {
+        this.ctx.fillRect(x + 13, y + 6, 1, 2);
+      }
+      
+      // Whiskers
+      this.ctx.fillStyle = '#FFFFFF';
+      if (leftFacing) {
+        this.ctx.fillRect(x + 2, y + 8, 2, 1);
+      } else {
+        this.ctx.fillRect(x + 16, y + 8, 2, 1);
+      }
       
       // Legs (walking animation)
       this.ctx.fillStyle = color;
       if (walkCycle === 0) {
-        this.ctx.fillRect(x + 4, y + height - 4, 3, 4);
-        this.ctx.fillRect(x + width - 7, y + height - 6, 3, 6);
+        this.ctx.fillRect(x + 7, y + 20, 3, 4);
+        this.ctx.fillRect(x + 14, y + 20, 3, 4);
       } else {
-        this.ctx.fillRect(x + 4, y + height - 6, 3, 6);
-        this.ctx.fillRect(x + width - 7, y + height - 4, 3, 4);
+        this.ctx.fillRect(x + 7, y + 20, 3, 4);
+        this.ctx.fillRect(x + 14, y + 20, 3, 4);
       }
       
     } else if (type === 'mouse') {
-      // Mouse body
-      this.ctx.fillRect(x + 4, y + 8, width - 8, height - 10);
-      this.ctx.strokeRect(x + 4, y + 8, width - 8, height - 10);
+      // Cute mouse in New Zealand Story style
+      const leftFacing = direction < 0;
       
-      // Mouse head
-      this.ctx.fillRect(x + (direction > 0 ? width - 8 : 2), y + 4, 6, 8);
-      this.ctx.strokeRect(x + (direction > 0 ? width - 8 : 2), y + 4, 6, 8);
+      // Body
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x + 6, y + 10, 8, 6);
       
-      // Ear
-      this.ctx.fillRect(x + (direction > 0 ? width - 6 : 4), y + 2, 4, 4);
+      // Head
+      this.ctx.fillRect(x + (leftFacing ? 4 : 8), y + 6, 8, 6);
       
-      // Tail
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      this.ctx.moveTo(x + (direction > 0 ? 4 : width - 4), y + height - 4);
-      this.ctx.lineTo(x + (direction > 0 ? 0 : width), y + height - 8);
-      this.ctx.stroke();
+      // Round ear
+      this.ctx.fillRect(x + (leftFacing ? 4 : 12), y + 4, 4, 4);
       
-    } else if (type === 'dog') {
-      // Dog body
-      this.ctx.fillRect(x + 4, y + 10, width - 8, height - 14);
-      this.ctx.strokeRect(x + 4, y + 10, width - 8, height - 14);
+      // Eye
+      this.ctx.fillStyle = '#000000';
+      this.ctx.fillRect(x + (leftFacing ? 6 : 13), y + 8, 2, 2);
       
-      // Dog head
-      this.ctx.fillRect(x + 8, y + 4, width - 16, 12);
-      this.ctx.strokeRect(x + 8, y + 4, width - 16, 12);
-      
-      // Snout
-      this.ctx.fillRect(x + (direction > 0 ? width - 10 : 6), y + 8, 6, 6);
+      // Nose
+      this.ctx.fillStyle = '#FF69B4';
+      this.ctx.fillRect(x + (leftFacing ? 4 : 14), y + 10, 2, 1);
       
       // Legs
-      this.ctx.fillRect(x + 6, y + height - 4, 4, 4);
-      this.ctx.fillRect(x + width - 10, y + height - 4, 4, 4);
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x + 7, y + 16, 2, 4);
+      this.ctx.fillRect(x + 11, y + 16, 2, 4);
+      
+      // Round tail (not scorpion-like!)
+      this.ctx.fillRect(x + (leftFacing ? 14 : 4), y + 12, 2, 2);
+      this.ctx.fillRect(x + (leftFacing ? 16 : 2), y + 10, 2, 2);
+      
+    } else if (type === 'dog') {
+      // Angry dog in classic arcade style
+      const leftFacing = direction < 0;
+      
+      // Body
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x + 4, y + 12, 24, 12);
+      
+      // Head
+      this.ctx.fillRect(x + (leftFacing ? 2 : 20), y + 6, 10, 10);
+      
+      // Ear
+      this.ctx.fillRect(x + (leftFacing ? 2 : 26), y + 4, 4, 4);
+      
+      // Snout
+      this.ctx.fillStyle = '#FFB6C1';
+      this.ctx.fillRect(x + (leftFacing ? 0 : 28), y + 10, 4, 4);
+      
+      // Eye (angry)
+      this.ctx.fillStyle = '#FF0000';
+      this.ctx.fillRect(x + (leftFacing ? 6 : 22), y + 8, 2, 2);
+      
+      // Teeth
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.fillRect(x + (leftFacing ? 0 : 28), y + 12, 2, 2);
+      
+      // Legs
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x + 6, y + 24, 3, 8);
+      this.ctx.fillRect(x + 12, y + 24, 3, 8);
+      this.ctx.fillRect(x + 18, y + 24, 3, 8);
+      this.ctx.fillRect(x + 24, y + 24, 3, 8);
     }
   }
 
   private draw() {
-    // Clear with lighter background
-    this.ctx.fillStyle = '#1a1a2e';
+    // Clear with classic dark blue background (like Ice Climber)
+    this.ctx.fillStyle = '#0000AA';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Draw platforms with gradient
+    // Draw platforms in classic brick style
     this.platforms.forEach(p => {
-      const gradient = this.ctx.createLinearGradient(p.x, p.y, p.x, p.y + 8);
-      gradient.addColorStop(0, '#ff00ff');
-      gradient.addColorStop(1, '#cc00cc');
-      this.ctx.fillStyle = gradient;
+      // Main platform color
+      this.ctx.fillStyle = '#FF8800';
       this.ctx.fillRect(p.x, p.y, p.width, 8);
       
-      // Platform outline
-      this.ctx.strokeStyle = '#ffffff';
-      this.ctx.lineWidth = 1;
-      this.ctx.strokeRect(p.x, p.y, p.width, 8);
+      // Brick pattern
+      this.ctx.fillStyle = '#CC6600';
+      for (let i = 0; i < p.width; i += 16) {
+        this.ctx.fillRect(p.x + i, p.y + 2, 14, 2);
+      }
+      
+      // Top highlight
+      this.ctx.fillStyle = '#FFAA44';
+      this.ctx.fillRect(p.x, p.y, p.width, 2);
     });
     
-    // Draw ladders
-    this.ctx.strokeStyle = '#ffff00';
-    this.ctx.lineWidth = 3;
+    // Draw ladders in classic style
+    this.ctx.fillStyle = '#FFFF00';
     this.ladders.forEach(l => {
-      for (let i = 0; i < l.height; i += 10) {
-        this.ctx.strokeRect(l.x - 8, l.y + i, 16, 10);
+      // Vertical rails
+      this.ctx.fillRect(l.x - 6, l.y, 3, l.height);
+      this.ctx.fillRect(l.x + 3, l.y, 3, l.height);
+      
+      // Rungs
+      for (let i = 0; i < l.height; i += 8) {
+        this.ctx.fillRect(l.x - 6, l.y + i, 12, 2);
       }
     });
     
-    // Draw teleporters with glow
-    this.teleporters.forEach(t => {
-      const pulse = Math.sin(this.animFrame / 20) * 0.3 + 0.7;
-      this.ctx.fillStyle = `rgba(160, 32, 240, ${pulse})`;
-      this.ctx.beginPath();
-      this.ctx.arc(t.x, t.y, 12, 0, Math.PI * 2);
-      this.ctx.fill();
+    // Draw teleporters as warp zones
+    this.teleporters.forEach((t, idx) => {
+      const pulse = Math.sin(this.animFrame / 15) * 0.5 + 0.5;
       
-      this.ctx.strokeStyle = '#ffffff';
-      this.ctx.lineWidth = 2;
-      this.ctx.stroke();
+      // Rotating effect
+      const colors = ['#FF00FF', '#00FFFF', '#FFFF00', '#00FF00'];
+      const colorIdx = (idx + Math.floor(this.animFrame / 10)) % colors.length;
+      
+      // Main portal
+      this.ctx.fillStyle = colors[colorIdx];
+      this.ctx.fillRect(t.x - 8, t.y - 8, 16, 16);
+      
+      // Inner square
+      this.ctx.fillStyle = colors[(colorIdx + 2) % colors.length];
+      this.ctx.fillRect(t.x - 4, t.y - 4, 8, 8);
+      
+      // Sparkle effect
+      if (pulse > 0.7) {
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(t.x - 1, t.y - 12, 2, 2);
+        this.ctx.fillRect(t.x - 12, t.y - 1, 2, 2);
+      }
     });
     
-    // Draw power-ups
+    // Draw power-ups with classic icons
     this.powerUps.forEach(p => {
-      const bob = Math.sin(this.animFrame / 15) * 2;
-      this.ctx.fillStyle = p.type === 'vitamin' ? '#00ff00' : '#ff8800';
-      this.ctx.fillRect(p.x - 8, p.y - 8 + bob, 16, 16);
-      this.ctx.strokeStyle = '#ffffff';
-      this.ctx.lineWidth = 2;
-      this.ctx.strokeRect(p.x - 8, p.y - 8 + bob, 16, 16);
+      const bob = Math.sin(this.animFrame / 12) * 3;
+      
+      if (p.type === 'vitamin') {
+        // Heart power-up
+        this.ctx.fillStyle = '#FF0000';
+        this.ctx.fillRect(p.x - 6, p.y - 4 + bob, 4, 4);
+        this.ctx.fillRect(p.x + 2, p.y - 4 + bob, 4, 4);
+        this.ctx.fillRect(p.x - 8, p.y + bob, 16, 8);
+        this.ctx.fillRect(p.x - 6, p.y + 8 + bob, 12, 4);
+        this.ctx.fillRect(p.x - 4, p.y + 12 + bob, 8, 2);
+        
+        // Shine
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(p.x - 2, p.y + 2 + bob, 2, 2);
+      } else {
+        // Star power-up
+        this.ctx.fillStyle = '#FFFF00';
+        // Center
+        this.ctx.fillRect(p.x - 2, p.y - 6 + bob, 4, 12);
+        this.ctx.fillRect(p.x - 6, p.y - 2 + bob, 12, 4);
+        // Diagonals
+        this.ctx.fillRect(p.x - 4, p.y - 4 + bob, 2, 2);
+        this.ctx.fillRect(p.x + 2, p.y - 4 + bob, 2, 2);
+        this.ctx.fillRect(p.x - 4, p.y + 2 + bob, 2, 2);
+        this.ctx.fillRect(p.x + 2, p.y + 2 + bob, 2, 2);
+      }
     });
     
     // Draw dog
-    this.drawSprite(this.dog.x, this.dog.y, this.dog.width, this.dog.height, '#ff0000', 'dog', this.dog.vx > 0 ? 1 : -1);
+    this.drawSprite(this.dog.x, this.dog.y, this.dog.width, this.dog.height, '#FF0000', 'dog', this.dog.vx > 0 ? 1 : -1);
     
     // Draw mice
     this.mice.forEach(m => {
-      this.drawSprite(m.x, m.y, m.width, m.height, '#ffff00', 'mouse', m.direction);
+      this.drawSprite(m.x, m.y, m.width, m.height, '#FFDD00', 'mouse', m.direction);
     });
     
     // Draw player with invincibility flash
-    if (this.player.invincible === 0 || Math.floor(this.animFrame / 5) % 2 === 0) {
-      this.drawSprite(this.player.x, this.player.y, this.player.width, this.player.height, '#00ffff', 'cat', this.player.direction);
+    if (this.player.invincible === 0 || Math.floor(this.animFrame / 4) % 2 === 0) {
+      this.drawSprite(this.player.x, this.player.y, this.player.width, this.player.height, '#00FFFF', 'cat', this.player.direction);
     }
     
-    // Draw invincibility indicator
+    // Draw invincibility shield
     if (this.player.invincible > 0) {
-      this.ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
-      this.ctx.beginPath();
-      this.ctx.arc(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, 18, 0, Math.PI * 2);
-      this.ctx.fill();
+      const shieldPulse = Math.sin(this.animFrame / 8);
+      this.ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + shieldPulse * 0.3})`;
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(
+        this.player.x - 2, 
+        this.player.y - 2, 
+        this.player.width + 4, 
+        this.player.height + 4
+      );
     }
   }
 

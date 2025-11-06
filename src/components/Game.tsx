@@ -104,7 +104,7 @@ export const Game = () => {
           width={800}
           height={600}
           className="block"
-          style={{ backgroundColor: "#1a1a2e" }}
+          style={{ backgroundColor: "#0000AA", imageRendering: "pixelated" }}
         />
       </div>
       <div className="text-xs pixel-font" style={{ color: "hsl(var(--c64-yellow))" }}>
