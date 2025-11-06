@@ -9,6 +9,12 @@ export const Game = () => {
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
   const [gameStarted, setGameStarted] = useState(false);
+  const [highScore, setHighScore] = useState(0);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('catsHighScore');
+    if (stored) setHighScore(parseInt(stored));
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current || !gameStarted) return;
@@ -62,6 +68,14 @@ export const Game = () => {
           </div>
         </div>
 
+        {highScore > 0 && (
+          <div className="retro-border px-8 py-4" style={{ borderColor: "hsl(var(--c64-cyan))", color: "hsl(var(--c64-cyan))" }}>
+            <div className="text-2xl pixel-font text-center retro-glow">
+              HIGH SCORE: {highScore.toString().padStart(6, '0')}
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleStart}
           className="px-12 py-4 text-2xl pixel-font retro-border hover:opacity-80 transition-opacity"
@@ -90,7 +104,7 @@ export const Game = () => {
           width={800}
           height={600}
           className="block"
-          style={{ backgroundColor: "hsl(var(--background))" }}
+          style={{ backgroundColor: "#1a1a2e" }}
         />
       </div>
       <div className="text-xs pixel-font" style={{ color: "hsl(var(--c64-yellow))" }}>
